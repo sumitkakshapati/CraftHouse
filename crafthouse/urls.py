@@ -15,6 +15,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
+from django.conf import settings
+from django.conf.urls.static import static
+
 # from api.models import CustomerResource
 
 #customer_resource = CustomerResource()
@@ -26,4 +29,5 @@ urlpatterns = [
     path('api/users/',include('customer.urls')),
     path('api/accounts/', include('authemail.urls')),
     path('api/',include('productcourse.urls')),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

@@ -14,6 +14,9 @@ pillow = "*"
 django-rest-authemail = "*"
 gunicorn = "*"
 whitenoise = "*"
+google-api-python-client = "*"
+google-auth-oauthlib = "*"
+oauth2client = "*"
 
 [requires]
 python_version = "3.7"

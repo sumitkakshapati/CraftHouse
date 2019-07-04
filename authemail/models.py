@@ -13,7 +13,7 @@ from django.core.mail import send_mail
 
 
 def _generate_code():
-    return binascii.hexlify(os.urandom(20))
+    return binascii.hexlify(os.urandom(4))
 
 
 class EmailUserManager(BaseUserManager):
@@ -53,6 +53,7 @@ class EmailAbstractUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(_('first name'), max_length=30, blank=True)
     last_name = models.CharField(_('last name'), max_length=30, blank=True)
     email = models.EmailField(_('email address'), max_length=255, unique=True)
+    phoneno = models.CharField(max_length = 255)
     is_staff = models.BooleanField(_('staff status'), default=False,
         help_text=_('Designates whether the user can log into this admin '
                     'site.'))

@@ -15,6 +15,7 @@ from authemail.serializers import PasswordResetSerializer
 from authemail.serializers import PasswordResetVerifiedSerializer
 from authemail.serializers import PasswordChangeSerializer
 from authemail.serializers import UserSerializer
+from customer.models import User
 
 
 class Signup(APIView):
@@ -22,22 +23,25 @@ class Signup(APIView):
     serializer_class = SignupSerializer
 
     def post(self, request, format=None):
+        print('----------------------------------')
+        print(self.request.data)
         serializer = self.serializer_class(data=request.data)
-
         if serializer.is_valid():
             email = serializer.data['email']
             password = serializer.data['password']
             first_name = serializer.data['first_name']
             last_name = serializer.data['last_name']
             is_seller = serializer.data['is_seller']
+            phoneno = serializer.data['phoneno']
 
-            must_validate_email = getattr(settings, "AUTH_EMAIL_VERIFICATION", True)
+            must_validate_email = getattr(
+                settings, "AUTH_EMAIL_VERIFICATION", True)
 
             try:
                 user = get_user_model().objects.get(email=email)
                 if user.is_verified:
                     content = {'detail':
-                        _('User with this Email address already exists.')}
+                               _('User with this Email address already exists.')}
                     return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
                 try:
@@ -57,19 +61,20 @@ class Signup(APIView):
             user.is_seller = is_seller
             if not must_validate_email:
                 user.is_verified = True
-                send_multi_format_email('welcome_email', 
-                                        {'email': user.email,},
+                send_multi_format_email('welcome_email',
+                                        {'email': user.email, },
                                         target_email=user.email)
             user.save()
 
             if must_validate_email:
                 # Create and associate signup code
                 ipaddr = self.request.META.get('REMOTE_ADDR', '0.0.0.0')
-                signup_code = SignupCode.objects.create_signup_code(user, ipaddr)
+                signup_code = SignupCode.objects.create_signup_code(
+                    user, ipaddr)
                 signup_code.send_signup_email()
 
             content = {'email': email, 'first_name': first_name,
-                'last_name': last_name}
+                       'last_name': last_name}
             return Response(content, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -106,24 +111,31 @@ class Login(APIView):
             email = serializer.data['email']
             password = serializer.data['password']
             user = authenticate(email=email, password=password)
+            print('-----------------------------')
+            print(self.request.data['email'])
+            print(self.request.data['password'])
+
+            if user and not user.is_verified:
+                content = {'detail': _('User account not verified.')}
+                return Response(content,status=status.HTTP_401_UNAUTHORIZED)
 
             if user and user.is_verified:
                 if user.is_active:
                     token, created = Token.objects.get_or_create(user=user)
-                    return Response({'token': token.key},
-                        status=status.HTTP_200_OK)
+                    return Response({'token': token.key, 'id': user.id, 'first_name': user.first_name, 'last_name': user.last_name, 'date_of_birth': user.date_of_birth, 'email': user.email, 'phone_no': user.phoneno, 'is_seller': user.is_seller},
+                                    status=status.HTTP_200_OK)
                 else:
                     content = {'detail': _('User account not active.')}
                     return Response(content,
-                        status=status.HTTP_401_UNAUTHORIZED)
+                                    status=status.HTTP_401_UNAUTHORIZED)
             else:
                 content = {'detail':
-                    _('Unable to login with provided credentials.')}
+                           _('Unable to login with provided credentials.')}
                 return Response(content, status=status.HTTP_401_UNAUTHORIZED)
 
         else:
             return Response(serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class Logout(APIView):
@@ -168,7 +180,7 @@ class PasswordReset(APIView):
 
         else:
             return Response(serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class PasswordResetVerify(APIView):
@@ -209,7 +221,7 @@ class PasswordResetVerified(APIView):
 
         else:
             return Response(serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class PasswordChange(APIView):
@@ -231,7 +243,7 @@ class PasswordChange(APIView):
 
         else:
             return Response(serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST)
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserMe(APIView):

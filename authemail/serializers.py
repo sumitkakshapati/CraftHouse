@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
+from customer.serializers import UserSerializer
 
 
 class SignupSerializer(serializers.Serializer):
@@ -14,6 +15,7 @@ class SignupSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=30, default='', 
         required=False)
     is_seller = serializers.BooleanField(default = False)
+    phoneno = serializers.CharField(max_length = 11)
 
 
 class LoginSerializer(serializers.Serializer):
