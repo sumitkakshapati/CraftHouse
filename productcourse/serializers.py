@@ -9,6 +9,7 @@ class CategoriesSerializer(serializers.ModelSerializer):
         fields = '__all__'
         model = models.Categories
 
+
 class ProductReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
@@ -112,7 +113,7 @@ class TestSerializer(serializers.ModelSerializer):
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
-        fields = ('course_id','title', 'video_url')
+        fields = ('id','course_id','title', 'video_url')
         model = models.Video
 
     def to_internal_value(self, data):
@@ -139,8 +140,8 @@ class CourseSerializer(serializers.ModelSerializer):
                              context={'user': 'getUserType'})
 
     class Meta:
-        fields = ('user_id', 'course_name', 'course_description','course_price',
-                  'course_tools_required', 'videos')
+        fields = ('id','user_id', 'course_name', 'course_description','course_price',
+                  'course_tools_required', 'videos','course_logo')
         model = models.Course
 
     def getUserType(self):

@@ -13,14 +13,22 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
 import requests
-
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 from .youtube import upload_video
+import os
+from django.conf import settings
 
 
 class ListCategories(generics.ListAPIView):
     permission_classes = (AllowAny,)
     queryset = models.Categories.objects.all()
     serializer_class = serializers.CategoriesSerializer
+
+    def get_queryset(self):
+        obj = models.Categories.objects.extra(
+            select={'lower_name': 'lower(cat_name)'}).order_by('lower_name')
+        return obj
 
 # Create product
 
@@ -104,10 +112,13 @@ class ListAllProduct(generics.ListAPIView):
     serializer_class = serializers.ProductSerializer
 
     def get_queryset(self):
+        # obj = models.Categories.objects.extra(
+        #     select={'lower_name': 'lower(cat_name)'}).order_by('lower_name')
+        print('----------------------------')
         user = self.request.user
         if user.id == None:
-            return models.Product.objects.all()
-        return models.Product.objects.filter(user_id_id=user.id)
+            return models.Product.objects.all().order_by('-created_at')
+        return models.Product.objects.filter(user_id_id=user.id).order_by('-created_at')
 
     def get_serializer_context(self):
         return {'is_list': True}
@@ -325,9 +336,20 @@ class CreateVideo(generics.CreateAPIView):
     serializer_class = serializers.VideoSerializer
 
     def create(self, request, *args, **kwargs):
+        print('-------------------------')
+        videoFile = request.data['file']
+        print(videoFile)
+        path = default_storage.save(
+            videoFile.name, ContentFile(videoFile.read()))
+        # print(type(request.data['file'].open()))
+        tmp_file = os.path.join(settings.MEDIA_ROOT, path)
+        print(type(tmp_file))
+        print(tmp_file)
+
         videoDetail = {
             'title': request.data['title'],
-            'file': request.data['file'].temporary_file_path()
+            'file': tmp_file
+            # 'file': request.data['file'].file  # temporary_file_path()
         }
         res = upload_video.uploadVid(videoDetail)
         if 'id' in res:
@@ -364,13 +386,18 @@ class CreateWatchList(generics.CreateAPIView):
             progress_obj.save()
 
 
-
 # List Videos
 
 class ListCourse(generics.ListAPIView):
     permission_class = (AllowAny,)
     queryset = models.Course.objects.all()
     serializer_class = serializers.CourseSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.id == None:
+            return models.Course.objects.all().order_by('-created_at')
+        return models.Course.objects.filter(user_id_id=user.id).order_by('-created_at')
 
     def get_serializer_context(self):
         try:
@@ -399,6 +426,37 @@ class CourseDetail(generics.RetrieveAPIView):
             if item.user_id_id == self.request.user.id:
                 return {'is_list': False, 'is_enrolled': True}
         return {'is_list': False, 'is_enrolled': False}
+
+
+# Course Update
+
+class CourseUpdate(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    queryset = models.Course.objects.all()
+    serializer_class = serializers.CourseSerializer
+
+    def perform_update(self, serializer):
+        current_user = self.request.user
+        current_object = models.Course.objects.get(id=self.kwargs['pk'])
+        if(current_user.id != current_object.user_id_id):
+            raise PermissionDenied(
+                {'Detail': 'User cannot update the Course'})
+
+        return super().perform_update(serializer)
+
+
+class CourseDelete(generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+    queryset = models.Course.objects.all()
+    serializer_class = serializers.CourseSerializer
+
+    def perform_destroy(self, instance):
+        current_user = self.request.user
+        current_object = models.Course.objects.get(id=self.kwargs['pk'])
+        if(current_user.id != current_object.user_id_id):
+            raise PermissionDenied(
+                {'Detail': 'User cannot delete the course'})
+        return super().perform_destroy(instance)
 
 
 class Enrolled(generics.CreateAPIView):
