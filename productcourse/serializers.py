@@ -4,6 +4,7 @@ from . import models
 from customer.models import User
 from .youtube import upload_video
 
+
 class CategoriesSerializer(serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
@@ -11,16 +12,24 @@ class CategoriesSerializer(serializers.ModelSerializer):
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
-        fields = ('id', 'product_id', 'first_name',
-                  'email', 'comment', 'rating')
+        fields = ('user_id','id', 'product_id', 'first_name',
+                  'email', 'comment')
         model = models.ProductReview
 
-    def validate_rating(self,value):
-        if value in range(1,6):
+
+class ProductRatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = ('user_id','id', 'product_id', 'first_name',
+                  'email', 'rating')
+        model = models.ProductRating
+
+    def validate_rating(self, value):
+        if value in range(1, 6):
             return value
-        raise serializers.ValidationError('Rating must be an integer between 1 to 5')
+        raise serializers.ValidationError(
+            'Rating must be an integer between 1 to 5')
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -35,7 +44,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = models.Product
 
     def get_average_rating(self, obj):
-        average = obj.reviews.aggregate(Avg('rating')).get('rating__avg')
+        average = obj.rating.aggregate(Avg('rating')).get('rating__avg')
 
         if average is None:
             return 0
@@ -44,7 +53,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def to_representation(self, value):
         temp = super().to_representation(value)
-        cat = models.Categories.objects.get(id = temp['categories'])
+        cat = models.Categories.objects.get(id=temp['categories'])
         temp['category_name'] = cat.cat_name
         if 'is_list' in self.context:
             if self.context['is_list']:
@@ -65,25 +74,38 @@ class ImageSerializer(serializers.ModelSerializer):
         fields = ('product_id', 'photo_url')
         model = models.Image
 
-    # def get_photo_url(self, image):
-    #     request = self.context.get('request')
-    #     photo_url = image.photo_url.url
-    #     return request.build_absolute_uri(photo_url)
 
 class CartSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ('__all__')
         model = models.Cart
 
+
+    def to_representation(self, value):
+        temp = super().to_representation(value)
+        obj = models.Product.objects.get(id = temp['product_id'])
+        temp['product_name'] = obj.product_name
+        temp['product_price'] = obj.product_price
+        temp['product_quantity'] = obj.product_quantity
+        img = models.Image.objects.filter(product_id = temp['product_id'])
+        temp['img1'] = img[0].photo_url.url
+        temp['img2'] = img[1].photo_url.url
+        temp['img3'] = img[2].photo_url.url
+        return temp
+
+    
+
+
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
-        fields = ('user_id','product_id','product_name','quantity','mobile_no', 'price')
+        fields = ('user_id', 'product_id', 'product_name',
+                  'quantity', 'mobile_no', 'price')
         model = models.Payment
 
 
 class SaleSerializer(serializers.ModelSerializer):
     class Meta:
-        fields = ('user_id','payment_id','sale_date')
+        fields = ('user_id', 'payment_id', 'sale_date')
         model = models.Sales
 
 
@@ -93,6 +115,7 @@ class QuestionsSerializer(serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
         model = models.Questions
+
 
 class TestSerializer(serializers.ModelSerializer):
     question = QuestionsSerializer(many=True, read_only=True)
@@ -113,7 +136,7 @@ class TestSerializer(serializers.ModelSerializer):
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
-        fields = ('id','course_id','title', 'video_url')
+        fields = ('id', 'course_id', 'title', 'video_url')
         model = models.Video
 
     def to_internal_value(self, data):
@@ -132,16 +155,17 @@ class VideoSerializer(serializers.ModelSerializer):
 
 class WatchListSerializer(serializers.ModelSerializer):
     class Meta:
-        fields = ('video_id','user_id','course_id')
+        fields = ('video_id', 'user_id', 'course_id')
         model = models.WatchList
+
 
 class CourseSerializer(serializers.ModelSerializer):
     videos = VideoSerializer(many=True, read_only=True,
                              context={'user': 'getUserType'})
 
     class Meta:
-        fields = ('id','user_id', 'course_name', 'course_description','course_price',
-                  'course_tools_required', 'videos','course_logo')
+        fields = ('id', 'user_id', 'course_name', 'course_description', 'course_price',
+                  'course_tools_required', 'videos', 'course_logo')
         model = models.Course
 
     def getUserType(self):
@@ -159,6 +183,7 @@ class EnrolledSerializer(serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
         model = models.Enrolled
+
 
 class CoursePaymentSerializer(serializers.ModelSerializer):
     class Meta:

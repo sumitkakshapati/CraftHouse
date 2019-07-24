@@ -6,6 +6,7 @@ from django.utils import timezone
 class Categories(models.Model):
     cat_name = models.CharField(max_length=100)
     cat_description = models.TextField()
+    cat_logo = models.ImageField(upload_to='category/', null=True, blank=True)
 
     def __str__(self):
         return self.cat_name
@@ -38,17 +39,30 @@ class Image(models.Model):
 
 
 class Cart(models.Model):
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0),
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, default=0)
+    product_id = models.ForeignKey(Product, on_delete=models.CASCADE, default=0)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0,)
+    quantity = models.IntegerField(default = 0)
 
+    class Meta:
+        unique_together = ('user_id','product_id')
+
+
+class ProductRating(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0,)
+    product_id = models.ForeignKey(
+        Product, on_delete=models.CASCADE, default=0, related_name='rating')
+    first_name = models.CharField(max_length=100)
+    email = models.CharField(max_length=100)
+    rating = models.IntegerField()
 
 class ProductReview(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0,)
     product_id = models.ForeignKey(
         Product, on_delete=models.CASCADE, default=0, related_name='reviews')
     first_name = models.CharField(max_length=100)
     email = models.CharField(max_length=100)
-    rating = models.IntegerField()
     comment = models.CharField(max_length=255)
+
 
 
 class Payment(models.Model):

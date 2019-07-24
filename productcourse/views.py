@@ -7,6 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError, PermissionDenied, ParseError
 from customer.models import User
 from django.http import Http404
+from django.shortcuts import get_list_or_404, get_object_or_404
 import json
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.response import Response
@@ -25,10 +26,10 @@ class ListCategories(generics.ListAPIView):
     queryset = models.Categories.objects.all()
     serializer_class = serializers.CategoriesSerializer
 
-    def get_queryset(self):
-        obj = models.Categories.objects.extra(
-            select={'lower_name': 'lower(cat_name)'}).order_by('lower_name')
-        return obj
+    # def get_queryset(self):
+    #     obj = models.Categories.objects.extra(
+    #         select={'lower_name': 'lower(cat_name)'}).order_by('lower_name')
+    #     return obj
 
 # Create product
 
@@ -200,9 +201,33 @@ class CreateImage(generics.CreateAPIView):
 # Create Products reviews
 
 class CreateProductReview(generics.ListCreateAPIView):
-    permission_class = (AllowAny,)
+    permission_class = (IsAuthenticated,)
     queryset = models.ProductReview.objects.all()
     serializer_class = serializers.ProductReviewSerializer
+
+# Create Products rating
+
+class CreateProductRating(generics.CreateAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.ProductRating.objects.all()
+    serializer_class = serializers.ProductRatingSerializer
+    
+    def perform_create(self, serializer):
+        userId = self.request.data['user_id']
+        productId = self.request.data['product_id']
+        try:
+            obj = models.ProductRating.objects.get(user_id_id = userId,product_id_id = productId)
+        except models.ProductRating.DoesNotExist:
+            obj = None
+        
+        if(obj == None):
+            temp = super().perform_create(serializer)
+            return temp
+        else:
+            obj.rating = int(self.request.data['rating'])
+            obj.save()
+        
+
 
 # Add to Cart
 
@@ -213,13 +238,25 @@ class CreateCart(generics.CreateAPIView):
     serializer_class = serializers.CartSerializer
 
 
+class UpdateCart(generics.UpdateAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.Cart.objects.all()
+    serializer_class = serializers.CartSerializer
+
+class RemoveCart(generics.DestroyAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.Cart.objects.all()
+    serializer_class = serializers.CartSerializer
+
 class ListCartItem(generics.ListAPIView):
     permission_class = (IsAuthenticated,)
     queryset = models.Cart.objects.all()
     serializer_class = serializers.CartSerializer
 
     def get_queryset(self):
-        query = models.Cart.objects.filter(user_id_id=self.kwargs('pk'))
+        print('--------------------------')
+        print(self.kwargs['pk'])
+        query = models.Cart.objects.filter(user_id_id=self.kwargs['pk'])
         return query
 
 # Manage Sales
