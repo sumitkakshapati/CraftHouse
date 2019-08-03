@@ -27,6 +27,8 @@ urlpatterns = [
     path('products/cart/update/<int:pk>/', views.UpdateCart.as_view(), name='list_cart'),
     path('products/cart/delete/<int:pk>/', views.RemoveCart.as_view(), name='list_cart'),
     path('products/cart/', views.CreateCart.as_view(), name='create_cart'),
+    path('products/mypurchase/', views.ListPayment.as_view(), name = 'list_payment'),
+    path('products/cart/deleteall/<int:pk>/',views.RemoveAllFromCart.as_view(),name = 'cart_remove_all'),
     # Courses
 
     path('courses/add/', views.CreateCourse.as_view(), name='add_courses'),
@@ -45,4 +47,7 @@ urlpatterns = [
     path('courses/<pk>/taketest/', views.RetrieveTest.as_view(), name='detail_test'),
     path('courses/createquestion/',
          views.CreateQuestions.as_view(), name='create_questions'),
+     path('courses/createReport/',views.CreateReport.as_view(),name = 'create_Report'),
+     path('courses/rating/add/', views.CreateCourseRating.as_view()),
+     path('courses/review/add/', views.CreateCourseReview.as_view()),
 ]

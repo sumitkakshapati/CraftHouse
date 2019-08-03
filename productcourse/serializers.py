@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.db.models import Avg
 from . import models
+from rest_framework.authtoken.models import Token
 from customer.models import User
 from .youtube import upload_video
 
@@ -68,7 +69,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ImageSerializer(serializers.ModelSerializer):
-    # photo_url = serializers.SerializerMethodField()
 
     class Meta:
         fields = ('product_id', 'photo_url')
@@ -102,6 +102,14 @@ class PaymentSerializer(serializers.ModelSerializer):
                   'quantity', 'mobile_no', 'price')
         model = models.Payment
 
+    def to_representation(self, value):
+        temp = super().to_representation(value)
+        temp.pop('mobile_no')
+        obj = models.Product.objects.get(id = temp['product_id'])
+        img = models.Image.objects.filter(product_id = temp['product_id'])
+        temp['img'] = img[0].photo_url.url
+        temp['product_made_of'] = obj.product_made_of
+        return temp
 
 class SaleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -145,8 +153,6 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def to_representation(self, value):
         val = super().to_representation(value)
-        print('-------------------')
-        print(self.context)
         if 'is_enrolled' in self.context:
             if not self.context['is_enrolled']:
                 val.pop('video_url')
@@ -158,21 +164,70 @@ class WatchListSerializer(serializers.ModelSerializer):
         fields = ('video_id', 'user_id', 'course_id')
         model = models.WatchList
 
+    def to_representation(self, value):
+        temp = super().to_representation(value)
+        obj = models.Progress.objects.get(user_id_id = temp['user_id'],course_id_id = temp['course_id'])
+        temp['progress'] = obj.progress_percentage
+        return temp
+
+
+class CourseReviewSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        fields = ('user_id','id', 'course_id', 'first_name',
+                  'email', 'comment')
+        model = models.CourseReview
+
+
+class CourseRatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = ('user_id','id', 'course_id', 'first_name',
+                  'email', 'rating')
+        model = models.CourseRating
+
+    def validate_rating(self, value):
+        if value in range(1, 6):
+            return value
+        raise serializers.ValidationError(
+            'Rating must be an integer between 1 to 5')
+
 
 class CourseSerializer(serializers.ModelSerializer):
     videos = VideoSerializer(many=True, read_only=True,
                              context={'user': 'getUserType'})
+    course_reviews = CourseReviewSerializer(many=True, read_only=True)
+    average_rating = serializers.SerializerMethodField()
 
     class Meta:
         fields = ('id', 'user_id', 'course_name', 'course_description', 'course_price',
-                  'course_tools_required', 'videos', 'course_logo')
+                  'course_tools_required', 'videos', 'course_logo','course_reviews','average_rating')
         model = models.Course
 
     def getUserType(self):
         return self.context['is_enrolled']
 
+    def get_average_rating(self, obj):
+        average = obj.course_rating.aggregate(Avg('rating')).get('rating__avg')
+
+        if average is None:
+            return 0
+
+        return round(average*2)/2
+
     def to_representation(self, value):
         val = super().to_representation(value)
+        if 'is_enrolled' in self.context:
+            val['is_enrolled'] = self.context['is_enrolled']
+            if self.context['is_enrolled']:
+                pro = models.Progress.objects.get(user_id_id = self.context['current_user'].id,course_id_id = value.id)
+                val['progress'] = pro.progress_percentage
+                s = models.Report.objects.filter(course_id_id=value.id,user_id_id = self.context['current_user'].id)
+                if s.count() == 0:
+                    val['courseTaken'] = False
+                else:
+                    val['courseTaken'] = True
+
+            
         if 'is_list' in self.context:
             if self.context['is_list']:
                 val.pop('videos')
@@ -189,3 +244,16 @@ class CoursePaymentSerializer(serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
         model = models.CoursePayment
+
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = '__all__'
+        model = models.Report
+
+    def to_representation(self, value):
+        temp = super().to_representation(value)
+        obj = models.Progress.objects.get(user_id_id = temp['user_id'],course_id_id = temp['course_id'])
+        temp['progress'] = obj.progress_percentage
+        return temp
+
+

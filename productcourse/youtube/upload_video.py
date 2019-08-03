@@ -60,8 +60,6 @@ def get_authenticated_service():
     scope=YOUTUBE_UPLOAD_SCOPE,
     message=MISSING_CLIENT_SECRETS_MESSAGE)
 
-  print('-------------------------------')
-  
   storage = Storage("upload_video.py-oauth2.json")
   credentials = storage.get()
 
@@ -129,10 +127,6 @@ def resumable_upload(insert_request):
 
 def uploadVid(videoDetail):
   youtube = get_authenticated_service()
-  # videoDetail = {
-  #   'title': 'Car Video 2',
-  #   'file' : '/home/timus/Downloads/Video/ManTextingOnTheStreet.mp4'
-  # }
 
   try:
     return initialize_upload(youtube,videoDetail)

@@ -26,10 +26,6 @@ class ListCategories(generics.ListAPIView):
     queryset = models.Categories.objects.all()
     serializer_class = serializers.CategoriesSerializer
 
-    # def get_queryset(self):
-    #     obj = models.Categories.objects.extra(
-    #         select={'lower_name': 'lower(cat_name)'}).order_by('lower_name')
-    #     return obj
 
 # Create product
 
@@ -115,7 +111,6 @@ class ListAllProduct(generics.ListAPIView):
     def get_queryset(self):
         # obj = models.Categories.objects.extra(
         #     select={'lower_name': 'lower(cat_name)'}).order_by('lower_name')
-        print('----------------------------')
         user = self.request.user
         if user.id == None:
             return models.Product.objects.all().order_by('-created_at')
@@ -207,26 +202,27 @@ class CreateProductReview(generics.ListCreateAPIView):
 
 # Create Products rating
 
+
 class CreateProductRating(generics.CreateAPIView):
     permission_class = (IsAuthenticated,)
     queryset = models.ProductRating.objects.all()
     serializer_class = serializers.ProductRatingSerializer
-    
+
     def perform_create(self, serializer):
         userId = self.request.data['user_id']
         productId = self.request.data['product_id']
         try:
-            obj = models.ProductRating.objects.get(user_id_id = userId,product_id_id = productId)
+            obj = models.ProductRating.objects.get(
+                user_id_id=userId, product_id_id=productId)
         except models.ProductRating.DoesNotExist:
             obj = None
-        
+
         if(obj == None):
             temp = super().perform_create(serializer)
             return temp
         else:
             obj.rating = int(self.request.data['rating'])
             obj.save()
-        
 
 
 # Add to Cart
@@ -243,10 +239,23 @@ class UpdateCart(generics.UpdateAPIView):
     queryset = models.Cart.objects.all()
     serializer_class = serializers.CartSerializer
 
+
 class RemoveCart(generics.DestroyAPIView):
     permission_class = (IsAuthenticated,)
     queryset = models.Cart.objects.all()
     serializer_class = serializers.CartSerializer
+
+
+class RemoveAllFromCart(generics.DestroyAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.Cart.objects.all()
+    serializer_class = serializers.CartSerializer
+
+    def delete(self, request, *args, **kwargs):
+        object = models.Cart.objects.filter(user_id_id=self.kwargs['pk'])
+        object.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ListCartItem(generics.ListAPIView):
     permission_class = (IsAuthenticated,)
@@ -254,8 +263,6 @@ class ListCartItem(generics.ListAPIView):
     serializer_class = serializers.CartSerializer
 
     def get_queryset(self):
-        print('--------------------------')
-        print(self.kwargs['pk'])
         query = models.Cart.objects.filter(user_id_id=self.kwargs['pk'])
         return query
 
@@ -323,9 +330,19 @@ class CreatePayment(generics.CreateAPIView):
             raise ValidationError(khalti_response.content)
 
 
+class ListPayment(generics.ListAPIView):
+    permission_class = (IsAuthenticated)
+    queryset = models.Payment.objects.all()
+    serializer_class = serializers.PaymentSerializer
+
+    def get_queryset(self):
+        obj = models.Payment.objects.filter(user_id_id=self.request.user.id)
+        return obj
+
 # Course Parts
 
 # Create Tests
+
 
 class CreateTest(generics.CreateAPIView):
     permission_class = (IsAuthenticated,)
@@ -333,15 +350,14 @@ class CreateTest(generics.CreateAPIView):
     serializer_class = serializers.TestSerializer
 
 
-class RetrieveTest(generics.RetrieveAPIView):
+class RetrieveTest(generics.ListAPIView):
     permission_class = (IsAuthenticated,)
     queryset = models.Test
     serializer_class = serializers.TestSerializer
 
     def get_queryset(self):
-        print('----------------------------------')
-        print(self.kwargs['pk'])
-        test = models.Test.objects.filter(course_id=self.kwargs['pk'])
+        test = models.Test.objects.filter(course_id_id=self.kwargs['pk'])
+        print(test)
         return test
 
 # Create Questions
@@ -351,6 +367,22 @@ class CreateQuestions(generics.CreateAPIView):
     permission_class = (IsAuthenticated,)
     queryset = models.Questions
     serializer_class = serializers.QuestionsSerializer
+
+class CreateReport(generics.CreateAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.Report
+    serializer_class = serializers.ReportSerializer
+
+    def perform_create(self, serializer):
+        serializer.save()
+        totalQuestion = self.request.data['total_question']
+        score = self.request.data['score']
+        progressTest = (int(score)/(int)(totalQuestion)) * 20
+        progress_obj = models.Progress.objects.get(
+            user_id_id=self.request.data['user_id'], course_id_id=self.request.data['course_id'])
+        progress_obj.progress_percentage += progressTest
+        progress_obj.save()
+
 
 
 # Create course
@@ -373,20 +405,14 @@ class CreateVideo(generics.CreateAPIView):
     serializer_class = serializers.VideoSerializer
 
     def create(self, request, *args, **kwargs):
-        print('-------------------------')
         videoFile = request.data['file']
-        print(videoFile)
         path = default_storage.save(
             videoFile.name, ContentFile(videoFile.read()))
-        # print(type(request.data['file'].open()))
         tmp_file = os.path.join(settings.MEDIA_ROOT, path)
-        print(type(tmp_file))
-        print(tmp_file)
 
         videoDetail = {
             'title': request.data['title'],
             'file': tmp_file
-            # 'file': request.data['file'].file  # temporary_file_path()
         }
         res = upload_video.uploadVid(videoDetail)
         if 'id' in res:
@@ -404,23 +430,16 @@ class CreateWatchList(generics.CreateAPIView):
     def perform_create(self, serializer):
         serializer.save()
         watch_obj = models.WatchList.objects.filter(
-            user_id_id=self.request.data['user_id'])
+            user_id_id=self.request.data['user_id'],course_id_id = self.request.data['course_id'])
         watch_video = watch_obj.count()
         total_video = models.Video.objects.filter(
             course_id_id=self.request.data['course_id']).count()
-        progress_per_video = (1/total_video) * 90
+        progress_per_video = (1/total_video) * 80
         print(watch_obj)
-        if watch_video == 1:
-            print('-----------------new progress-------------------')
-            models.Progress.objects.create(
-                user_id_id=self.request.data['user_id'], course_id_id=self.request.data['course_id'], progress_percentage=progress_per_video)
-
-        else:
-            print('-------------------old progress-----------------------')
-            progress_obj = models.Progress.objects.get(
-                user_id_id=self.request.data['user_id'], course_id_id=self.request.data['course_id'])
-            progress_obj.progress_percentage += progress_per_video
-            progress_obj.save()
+        progress_obj = models.Progress.objects.get(
+            user_id_id=self.request.data['user_id'], course_id_id=self.request.data['course_id'])
+        progress_obj.progress_percentage += progress_per_video
+        progress_obj.save()
 
 
 # List Videos
@@ -454,15 +473,13 @@ class CourseDetail(generics.RetrieveAPIView):
         course = models.Enrolled.objects.filter(course_id_id=self.kwargs['pk'])
         print(course)
         if course.count() == 0:
-            print('------------------------')
-            print('count = 0')
-            return {'is_list': False, 'is_enrolled': False}
+            return {'is_list': False, 'is_enrolled': False , 'current_user':self.request.user}
         print(self.request.user.id)
         for item in course:
             print(item.user_id_id)
             if item.user_id_id == self.request.user.id:
-                return {'is_list': False, 'is_enrolled': True}
-        return {'is_list': False, 'is_enrolled': False}
+                return {'is_list': False, 'is_enrolled': True , 'current_user':self.request.user}
+        return {'is_list': False, 'is_enrolled': False , 'current_user':self.request.user}
 
 
 # Course Update
@@ -518,5 +535,38 @@ class CreateCoursePayment(generics.CreateAPIView):
                 data={'user_id': self.request.user.id, 'course_id': self.request.data['course_id'], 'payment_id': pment.id})
             if enroll.is_valid():
                 enroll.save()
+                models.Progress.objects.create(
+                    user_id_id=self.request.user.id, course_id_id=self.request.data['course_id'], progress_percentage=0.0)
             else:
                 raise ValidationError({'detail': enroll.errors})
+
+# Create Products reviews
+
+class CreateCourseReview(generics.ListCreateAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.CourseReview.objects.all()
+    serializer_class = serializers.CourseReviewSerializer
+
+# Create Products rating
+
+
+class CreateCourseRating(generics.CreateAPIView):
+    permission_class = (IsAuthenticated,)
+    queryset = models.CourseRating.objects.all()
+    serializer_class = serializers.CourseRatingSerializer
+
+    def perform_create(self, serializer):
+        userId = self.request.data['user_id']
+        courseId = self.request.data['course_id']
+        try:
+            obj = models.CourseRating.objects.get(
+                user_id_id=userId, course_id_id=courseId)
+        except models.CourseRating.DoesNotExist:
+            obj = None
+
+        if(obj == None):
+            temp = super().perform_create(serializer)
+            return temp
+        else:
+            obj.rating = int(self.request.data['rating'])
+            obj.save()

@@ -14,7 +14,6 @@ from . import serializers
 
 # Update , delete and retrieve User
 
-
 class RetriveUpdateUser(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated,)
     queryset = models.User.objects.all()

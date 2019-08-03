@@ -103,6 +103,9 @@ class Test(models.Model):
     test_name = models.CharField(max_length=255)
     course_id = models.ForeignKey(Course, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return self.test_name
+
 
 class Questions(models.Model):
     ANSWER_OPTIONS = (
@@ -120,6 +123,9 @@ class Questions(models.Model):
     option4 = models.CharField(max_length=255)
     correct_answer = models.CharField(
         max_length=2, choices=ANSWER_OPTIONS, default='1')
+
+    def __str__(self):
+        return self.question
 
 
 class Video(models.Model):
@@ -149,7 +155,7 @@ class CoursePayment(models.Model):
 
 class Enrolled(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0)
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, default=0)
+    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, default=0,)
     payment_id = models.ForeignKey(
         CoursePayment, on_delete=models.CASCADE, default=0)
     enrolled_date = models.DateTimeField(default=timezone.now)
@@ -161,11 +167,34 @@ class Report(models.Model):
     total_question = models.IntegerField(default=0)
     score = models.IntegerField(default=0)
 
+    class Meta:
+        unique_together = ('user_id', 'course_id')
+
 
 class Progress(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0)
-    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, default=0)
+    course_id = models.ForeignKey(Course, on_delete=models.CASCADE, default=0,related_name='progress')
     progress_percentage = models.FloatField(default=0.0)
 
     class Meta:
         unique_together = ('user_id', 'course_id')
+
+    def __str__(self):
+        return str(self.progress_percentage)
+
+
+class CourseRating(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0,)
+    course_id = models.ForeignKey(
+        Course, on_delete=models.CASCADE, default=0, related_name='course_rating')
+    first_name = models.CharField(max_length=100)
+    email = models.CharField(max_length=100)
+    rating = models.IntegerField()
+
+class CourseReview(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, default=0,)
+    course_id = models.ForeignKey(
+        Course, on_delete=models.CASCADE, default=0, related_name='course_reviews')
+    first_name = models.CharField(max_length=100)
+    email = models.CharField(max_length=100)
+    comment = models.CharField(max_length=255)
